@@ -6,6 +6,7 @@ import os
 import signal
 import re
 import datetime
+import subprocess
 
 #changes
 # server_list is a dict containing servers indexed by name, and does not contain the bot
@@ -15,6 +16,19 @@ server_list = {}
 bot = {}
 bot_ready = 0
 currently_running = 0
+
+class Server():
+    def __init__(self, serverid, pid, name, input, output, mutex, status, logfile, chatlog, chat_mutex):
+        self.serverid = serverid  # The index of the server, bot will be 0
+        self.pid = pid  # The process id of the server, used to send SIGINT (CTRL-C)
+        self.name = name  # Server Name
+        self.input = input # Overwritten STDIN
+        self.output = output # Overwritten STDOUT
+        self.mutex = mutex # Thread safety
+        self.status = status # Started or Stopped
+        self.logfile = logfile # Location of logfile to write to
+        self.chatlog = chatlog # Location of chatlog to write to
+        self.chat_mutex = chat_mutex # Mutex for chatlog protection
 
 
 # Find server with given name
@@ -170,6 +184,8 @@ def launch_server(name, args, logpath):
     # }
     #
     # Fork process
+
+    new_server = subprocess.Popen(args=args, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
     pid = os.fork()
 
     if pid < 0:
@@ -272,7 +288,7 @@ def stop_all_servers():
     for _, server in server_list.items():
         stop_server(server.name)
         print("Server {} Shutdown".format(server.name), file=sys.stdout)
-        send_threaded_chat("bot", "$**[ANNOUNCEMENT]** Server has stopped!")
+        send_threaded_chat("bot", "{}$**[ANNOUNCEMENT]** Server has stopped!".format(server.name))
     # Shut down the bot
     time.sleep(1)
     os.kill(bot.pid, signal.SIGINT)
