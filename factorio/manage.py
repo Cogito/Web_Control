@@ -114,7 +114,7 @@ def log_chat(name, message):
     pthread_mutex_lock(sendto.chat_mutex)
 
     # Write data
-    with os.fopen(sendto.chatlog, "a") as output:
+    with os.fdopen(sendto.chatlog, "a") as output:
         output.write(output_message)
 
     # Unlock the mutex so that another thread can send data to this server
