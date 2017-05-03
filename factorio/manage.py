@@ -140,8 +140,126 @@ def get_server_status(name):
 
 # Function to be called by threads in order to monitor input
 # void * input_monitoring(void * server_ptr)
-def input_monitoring(server_ptr):
-    return "Not Yet Implemented"
+def input_monitoring(server):
+    #return "Not Yet Implemented"
+    input_from_server = os.fdopen(server.output, "r")
+    if server != bot:
+        # If Factorio server, create the logfile
+        logfile = os.fdopen(server.logfile, "a")
+    while True:
+        data = input_from_server.readline(2001)
+        if not data or data[0] == '\n':
+            #This should only get called when the server shuts down
+            break
+
+        if (server != bot and " [CHAT] " in data) or " (shout):" not in data:
+            logfile.write("{}\r\n".format(data))
+
+        if "$" in data and (" [CHAT] " not in data and " (shout):" not in data) or server == bot:
+            # The format of the data is "servername$new_data"
+            # Handles the rare occasion a chat message will have a '$' inside it
+            servername, new_data = data.split("$", 1)
+            new_data = new_data.trim()  # if (strchr(new_data,'\n') != NULL) new_data[strchr(new_data,'\n') - new_data] = '\0';
+            if servername == "restart" and server == bot:
+                # Bot wants to restart
+                pthread_mutex_lock(server.mutex)  # Lock the mutex to prevent the bot from being used before it's ready
+                bot_ready = 0
+                server.status = "Restarting"
+                os.kill(bot.pid, signal.SIGINT)
+                os.waitpid(bot.pid, 0)
+                os.fdclose(input_from_server)
+                server.input.close()
+                launch_bot()
+                input_from_server = os.fdopen(server.output, "r")
+                pthread_mutex_unlock(server.mutex)
+            elif servername == "ready" and server == bot:
+                # Bot startup is complete, it is ready to continue
+                bot_ready = 1
+            elif servername == "DEBUG":
+                # Handle debug messages
+                print("{}\n".format(new_data), file=sys.stderr)
+            elif servername == "chat":
+                # Handle Articulating's Chat Program
+                chat_args = re.split("[,\n\t]+", new_data.strip())
+                message =  "/silent-command push_message('{}','{}','{}')\n".format(chat_args[0], chat_args[1], chat_args[2])
+                for server in server_list:
+                    if server.status == "Started":
+                        send_threaded_chat(server.name, message)
+            elif servername == "PLAYER":
+                # This is a player update, used for the bot to keep track of PvP Player Teams
+                message = "PLAYER${}${}\n".format(server.name, new_data)
+                player_args = re.split("[,\n\t]+", new_data.strip())
+
+                if player_args[0] == "join":
+                    player_announcement = "[PUPDATE] {} has joined the server [{}]".format(player_args[2], player_args[3])
+                elif player_args[0] == "leave":
+                    player_announcement = "[PUPDATE] {} has left the server [{}]".format(player_args[2], player_args[3])
+                elif player_args[0] == "force":
+                    player_announcement = "[PUPDATE] {} has changed forces to {}".format(player_args[2], player_args[3])
+                elif player_args[0] == "die":
+                    player_announcement = "[PUPDATE] {} was killed [{}]".format(player_args[2], player_args[3])
+                elif player_args[0] == "respawn":
+                    player_announcement = "[PUPDATE] {} has respawned [{}]".format(player_args[2], player_args[3])
+                elif player_args[0] != "update":
+                    continue
+
+                log_chat(server.name, player_announcement)
+                send_threaded_chat("bot", message)
+            elif servername == "admin":
+                if server == bot:
+                    # Bot is sending a command or announcement to a server
+                    actual_server_name, command = new_data.split("$", 1)
+                    command = command + "\n"
+                    if actual_server_name == "all":
+                        for server in server_list:
+                            # if server.status == "Started":  # Should this be here as it is in other places?
+                            send_threaded_chat(server.name, command)
+                    else:
+                        send_threaded_chat(actual_server_name, command)
+                else:
+                    # Admin Warning System is being sent back to the bot
+                    message = "admin${}${}\n".format(server.name, new_data)
+                    send_threaded_chat("bot", message)
+            elif servername == "output":
+                message = "output$(%s)%s\n".format(server.name, new_data)
+                send_threaded_chat("bot", message)
+            elif servername == "query":
+                message = "query%s\n".format(new_data)
+                send_threaded_chat("bot", message)
+            elif servername == "PVPROUND":
+                message = "PVPROUND$%s$%s\n".format(server.name, new_data)
+                send_threaded_chat("bot", message)
+            elif server == bot:
+                if servername == "PVP":
+                    # Bot is sending chat to a PvP server through default chat
+                    actual_server_name, force_name, message_to_send = new_data.split("$", 2)
+
+                    log_chat(actual_server_name, message_to_send)
+                    message = "/silent-command if game.forces['{}'] then game.forces['{}'].print('{}') end\n".format(force_name, force_name, message_to_send)
+                    send_threaded_chat(actual_server_name, message)
+                else:
+                    # Bot is sending chat to a normal server through default chat
+                    log_chat(servername, new_data)
+                    message = "/silent-command game.print('{}')\n".format(new_data)
+                    send_threaded_chat(servername, message)
+        elif " [CHAT] " in data and "[DISCORD]" not in data:
+            # Server is sending chat through default chat, relay it to bot
+            # Also includes check to prevent echoing
+            new_data = data[data.find(" CHAT ") + len(" CHAT "):]
+            log_chat(server.name, new_data)
+            message = "{}${}\n".format(server.name, new_data)
+            send_threaded_chat("bot", message)
+        elif " (shout):" in data and "[DISCORD]" not in data:
+            log_chat(server.name, data)
+            message = "{}${}\n".format(server.name, data)
+            send_threaded_chat("bot", message)
+    # After server is closed, close file streams
+
+    if server != bot:
+        # If Factorio server, close the logfile
+        logfile.close()
+
+    input_from_server.close()
 
 
 # Contrary to what the name suggests, this function can launch either the bot or a server successfully
