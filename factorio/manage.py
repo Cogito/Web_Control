@@ -20,8 +20,7 @@ currently_running = 0
 
 
 class Server:
-    def __init__(self, serverid, pid, name, input, output, mutex, status, logfile, chatlog, chat_mutex):
-        self.serverid = serverid  # The index of the server, bot will be 0
+    def __init__(self, pid, name, input, output, mutex, status, logfile, chatlog, chat_mutex):
         self.pid = pid  # The process id of the server, used to send SIGINT (CTRL-C)
         self.name = name  # Server Name
         self.input = input  # Overwritten STDIN
@@ -305,7 +304,6 @@ def launch_server(name, args, logpath):
     # Adds server to server_list, and creates new thread for monitoring
     if server_status == "Server Does Not Exist":
         server = Server(
-            #serverid=
             pid=new_server_process.pid,
             name=name_copy,
             input=new_server_process.stdin,
