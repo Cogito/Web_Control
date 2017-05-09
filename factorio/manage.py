@@ -53,7 +53,7 @@ def send_threaded_chat(name, message):
             return "Server Not Running"
 
     # Attempt to lock the mutex - If another thread is currently writing to this place, the code will wait here
-    pthread_mutex_lock(sendto.mutex)
+    sendto.mutex.acquire()
 
     # In case of crashes
     if sendto.status == "Stopped":
@@ -69,7 +69,7 @@ def send_threaded_chat(name, message):
             return "Failed"
 
     # Unlock the mutex so that another thread can send data to this server
-    pthread_mutex_unlock(sendto.mutex)
+    sendto.mutex.release()
 
     return "Successful"
 
@@ -111,16 +111,15 @@ def log_chat(name, message):
     else:
         output_message = "{} {}\r\n".format(timestamp, message)
 
-
     # Attempt to lock the mutex - If another thread is currently writing to this place, the code will wait here
-    pthread_mutex_lock(sendto.chat_mutex)
+    sendto.chat_mutex.acquire()
 
     # Write data
     with os.fdopen(sendto.chatlog, "a") as output:
         output.write(output_message)
 
     # Unlock the mutex so that another thread can send data to this server
-    pthread_mutex_unlock(sendto.chat_mutex)
+    sendto.chat_mutex.release()
 
     return "Successful"
 
@@ -294,70 +293,47 @@ def launch_server(name, args, logpath):
     else:
         chatlog = "bot"
 
-    # Create pipes
-    # int in_pipe[2];
-    # int out_pipe[2];
-    #
-    # if (pipe(in_pipe) == -1 || pipe(out_pipe) == -1) {
-    # fprintf(stderr, "Failure to create pipes.");
-    # exit(1);
-    # }
-    #
-    # Fork process
+    # Create server subprocess
+    new_server_process = subprocess.Popen(
+        args=args,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        universal_newlines=True
+    )
 
-    new_server = subprocess.Popen(args=args, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-    pid = os.fork()
-
-    if pid < 0:
-        print("Failure to fork process.", file=sys.stderr)
-        os._exit(1)
-    elif pid == 0:
-        # Child Process (Server)
-        # dup2(in_pipe[0], STDIN_FILENO);
-        # close(in_pipe[0]);
-        # close(in_pipe[1]);
-        # dup2(out_pipe[1], STDOUT_FILENO);
-        # close(out_pipe[1]);
-        # close(out_pipe[0]);
-        if os.execvp(args[0], args) == -1:
-            print("Failure to launch server. Error Code: ", file=sys.stderr)
-            os._exit(1)
     # Only parent process reaches this point
-    # Closes unneeded pipe ends, adds server to server_list, and creates new thread for monitoring
-    # close(in_pipe[0]);
-    # close(out_pipe[1]);
+    # Adds server to server_list, and creates new thread for monitoring
     if server_status == "Server Does Not Exist":
-        # server_list = (struct ServerData **) realloc(server_list, ((servers + 1) * sizeof(struct ServerData *)));
-        # struct ServerData *server = (struct ServerData *) malloc(sizeof(struct ServerData));
-        server,serverid = servers
-        server.pid = pid
-        # server->name = name_copy;
-        # server->input = in_pipe[1];
-        # server->output = out_pipe[0];
-        # pthread_mutex_t mymutex = PTHREAD_MUTEX_INITIALIZER;
-        # server->mutex = mymutex;
-        # server->status = "Started";
-        # server->logfile = logfile;
-        # server->chatlog = chatlog;
-        # pthread_mutex_t mymutex2 = PTHREAD_MUTEX_INITIALIZER;
-        # server->chat_mutex = mymutex2;
-        # server_list[servers] = server;
-        # thread_list = (pthread_t *) realloc(thread_list, ((servers + 1) * sizeof(pthread_t)));
-        # pthread_create(&thread_list[servers], &thread_attr, input_monitoring, (void *) server_list[servers]);
-        servers++
-        #
+        server = Server(
+            #serverid=
+            pid=new_server_process.pid,
+            name=name_copy,
+            input=new_server_process.stdin,
+            output=new_server_process.stdout,
+            mutex=threading.Lock(),
+            status="Started",
+            logfile=logfile,
+            chatlog=chatlog,
+            chat_mutex=threading.Lock(),
+        )
+
+        server_list[server.name] = server
+        thread_list[server.name] = threading.Thread(target=input_monitoring, args=(server,), daemon=True)
+        thread_list[server.name].start()
         return "New Server Started"
     else:
         server = find_server(name)
-        server.pid = pid
-        server.input = in_pipe[1]
-        server.output = out_pipe[0]
+        server.pid = new_server_process.pid
+        server.input = new_server_process.stdin
+        server.output = new_server_process.stdout
         server.logfile = logfile
         server.chatlog = chatlog
         if server.status != "Restarting":
-            os.pthread_create() # &thread_list[server->serverid], &thread_attr, input_monitoring, (void *) server_list[server->serverid])
+            thread_list[server.name] = threading.Thread(target=input_monitoring, args=(server,), daemon=True)
+            thread_list[server.name].start()
         else:
-            os.pthread_create() # &thread_list[server->serverid], &thread_attr, bot_ready_watch, (void *) server_list[server->serverid])
+            thread_list[server.name] = threading.Thread(target=bot_ready_watch, args=(server,), daemon=True)
+            thread_list[server.name].start()
         server.status = "Started"
 
         return "Old Server Restarted"
@@ -477,7 +453,7 @@ def server_crashed(server):
             bot.output.close()  # Close output pipe
             # Exit with error
             exit(1)
-    pthread_mutex_unlock(server.mutex)
+    server.mutex.release()
 
 
 # void * heartbeat()
