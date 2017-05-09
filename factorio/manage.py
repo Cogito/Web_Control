@@ -13,22 +13,24 @@ import subprocess
 # bot contains info about the bot
 
 server_list = {}
+thread_list = {}
 bot = {}
 bot_ready = 0
 currently_running = 0
 
-class Server():
+
+class Server:
     def __init__(self, serverid, pid, name, input, output, mutex, status, logfile, chatlog, chat_mutex):
         self.serverid = serverid  # The index of the server, bot will be 0
         self.pid = pid  # The process id of the server, used to send SIGINT (CTRL-C)
         self.name = name  # Server Name
-        self.input = input # Overwritten STDIN
-        self.output = output # Overwritten STDOUT
-        self.mutex = mutex # Thread safety
+        self.input = input  # Overwritten STDIN
+        self.output = output  # Overwritten STDOUT
+        self.mutex = mutex  # Thread safety
         self.status = status # Started or Stopped
-        self.logfile = logfile # Location of logfile to write to
-        self.chatlog = chatlog # Location of chatlog to write to
-        self.chat_mutex = chat_mutex # Mutex for chatlog protection
+        self.logfile = logfile  # Location of logfile to write to
+        self.chatlog = chatlog  # Location of chatlog to write to
+        self.chat_mutex = chat_mutex  # Mutex for chatlog protection
 
 
 # Find server with given name
