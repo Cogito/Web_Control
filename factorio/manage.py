@@ -163,7 +163,7 @@ def input_monitoring(server):
             new_data = new_data.trim()  # if (strchr(new_data,'\n') != NULL) new_data[strchr(new_data,'\n') - new_data] = '\0';
             if servername == "restart" and server == bot:
                 # Bot wants to restart
-                pthread_mutex_lock(server.mutex)  # Lock the mutex to prevent the bot from being used before it's ready
+                server.mutex.acquire()  # Lock the mutex to prevent the bot from being used before it's ready
                 bot_ready = 0
                 server.status = "Restarting"
                 os.kill(bot.pid, signal.SIGINT)
@@ -172,7 +172,7 @@ def input_monitoring(server):
                 server.input.close()
                 launch_bot()
                 input_from_server = os.fdopen(server.output, "r")
-                pthread_mutex_unlock(server.mutex)
+                server.mutex.release()
             elif servername == "ready" and server == bot:
                 # Bot startup is complete, it is ready to continue
                 bot_ready = 1
@@ -371,7 +371,7 @@ def stop_server(name):
 
     os.kill(server.pid, signal.SIGINT)  # Send CTRL-C to the server, should close pipes on server end
     os.waitpid(server.pid, 0)  # Wait for server to close
-    pthread_join(thread_list[server.serverid], NULL)  # Wait for thread to terminate
+    thread_list[server.name].join()  # Wait for thread to terminate
     server.input.close()  # Close input pipe
     server.output.close()  # Close output pipe
     server.status = "Stopped"
@@ -389,7 +389,7 @@ def stop_all_servers():
     time.sleep(1)
     os.kill(bot.pid, signal.SIGINT)
     os.waitpid(bot.pid, 0)
-    pthread_join(thread_list[0], NULL)
+    thread_list[0].join()
     bot.input.close()  # Close input pipe
     bot.output.close()  # Close output pipe
     # Exit successfully
@@ -448,7 +448,7 @@ def server_crashed(server):
             time.sleep(5)
             os.kill(bot.pid, signal.SIGINT)
             os.waitpid(bot.pid, 0)
-            pthread_join(thread_list[0], NULL)
+            thread_list[0].join()
             bot.input.close()  # Close input pipe
             bot.output.close()  # Close output pipe
             # Exit with error
@@ -548,7 +548,7 @@ def main():
 
     os.kill(bot.pid, signal.SIGINT)
     os.waitpid(bot.pid, 0)
-    pthread_join(thread_list[0], NULL)
+    thread_list[0].join()
     bot.input.close()  # Close input pipe
     bot.output.close()  # Close output pipe
 
