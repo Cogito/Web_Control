@@ -144,7 +144,6 @@ def get_server_status(name):
 # Function to be called by threads in order to monitor input
 # void * input_monitoring(void * server_ptr)
 def input_monitoring(server):
-    #return "Not Yet Implemented"
     input_from_server = os.fdopen(server.output, "r")
     if server != bot:
         # If Factorio server, create the logfile
@@ -152,7 +151,7 @@ def input_monitoring(server):
     while True:
         data = input_from_server.readline(2001)
         if not data or data[0] == '\n':
-            #This should only get called when the server shuts down
+            # This should only get called when the server shuts down
             break
 
         if (server != bot and " [CHAT] " in data) or " (shout):" not in data:
