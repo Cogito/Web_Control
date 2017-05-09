@@ -35,7 +35,10 @@ class Server:
 # Find server with given name
 # struct ServerData * find_server(char * name)
 def find_server(name):
-    return server_list[name]
+    if name in server_list:
+        return server_list[name]
+    else:
+        return None
 
 
 # Function to write data using thread safe methods
