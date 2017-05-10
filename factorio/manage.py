@@ -59,7 +59,7 @@ def send_threaded_chat(name, message):
 
     # Write data, with added error checking for crash detection
     try:
-        with os.fdopen(os.dup(sendto.input), "a") as output:
+        with sendto.input as output:
             output.write(message)
     except IOError as e:
         if e.errno == errno.EPIPE:
@@ -110,7 +110,7 @@ def log_chat(name, message):
     sendto.chat_mutex.acquire()
 
     # Write data
-    with os.fdopen(sendto.chatlog, "a") as output:
+    with open(sendto.chatlog, "a") as output:
         output.write(output_message)
 
     # Unlock the mutex so that another thread can send data to this server
