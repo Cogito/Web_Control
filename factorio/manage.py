@@ -338,14 +338,21 @@ def launch_server(name, args, logpath):
 def start_server(name, input_args):
     args = re.split("[,\n\t]+", input_args.strip())
     # Process of setting up the arguments for the execvp() call
-    launchargs = [
-        "/usr/share/factorio/bin/x64/factorio",
-        "--start-server-load-latest" if args[0] == "true" else "--start-server",
-        "--port", args[1],
-        "-c", "{}/config/config.ini".format(args[2]),
-        "--server-setting", "{}/server-settings.json".format(args[2])
-    ]
-    result = launch_server(name, launchargs, args[2])
+    launchargs = []
+    offset = 0
+
+    launchargs.append("TEMP")
+    if args[0] == "true":
+        launchargs.append("--start-server-load-latest")
+    else:
+        launchargs.extend(["--start-server", args[1]])
+        offset = offset + 1
+    launchargs.extend(["--port", args[1 + offset]])
+    launchargs.extend(["-c", "{}/config/config.ini".format(args[2 + offset])])
+    launchargs.extend(["--server-setting", "{}/server-settings.json".format(args[2 + offset])])
+    launchargs[0] = args[3 + offset]
+
+    result = launch_server(name, launchargs, args[2 + offset])
     return result
 
 
