@@ -144,10 +144,10 @@ def get_server_status(name):
 # Function to be called by threads in order to monitor input
 # void * input_monitoring(void * server_ptr)
 def input_monitoring(server):
-    input_from_server = os.fdopen(server.output, "r")
+    input_from_server = server.output
     if server != bot:
         # If Factorio server, create the logfile
-        logfile = os.fdopen(server.logfile, "a")
+        logfile = open(server.logfile, "a")
     while True:
         data = input_from_server.readline(2001)
         if not data or data[0] == '\n':
@@ -169,10 +169,10 @@ def input_monitoring(server):
                 server.status = "Restarting"
                 os.kill(bot.pid, signal.SIGINT)
                 os.waitpid(bot.pid, 0)
-                os.fdclose(input_from_server)
+                input_from_server.close()
                 server.input.close()
                 launch_bot()
-                input_from_server = os.fdopen(server.output, "r")
+                input_from_server = server.output
                 server.mutex.release()
             elif servername == "ready" and server == bot:
                 # Bot startup is complete, it is ready to continue
@@ -422,8 +422,8 @@ def server_crashed(server):
     global bot_ready
     global currently_running
     # The server has crashed
-    os.close(server.input)  # Close input pipe
-    os.close(server.output)  # Close output pipe
+    server.input.close()  # Close input pipe
+    server.output.close()  # Close output pipe
     server.status = "Stopped"
 
     if server.name == "bot":
@@ -433,7 +433,7 @@ def server_crashed(server):
         # YYYY-MM-DD HH:MM:SS
         timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         try:
-            with os.fdopen(os.dup(server.input), "a") as output:
+            with server.input as output:
                 output.write("emergency$%{}\n".format(timestamp))
         except IOError as e:
             if e.errno == errno.EPIPE:
