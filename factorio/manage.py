@@ -392,7 +392,7 @@ def stop_all_servers():
 # void * bot_ready_watch(void * vbot)
 def bot_ready_watch(vbot):
     global bot_ready
-    with os.fdopen(os.dup(vbot.output), "r") as bot_input:
+    with vbot.output as bot_input:
         while True:
             data = bot_input.readline(2001)
             if data == "ready$\n":
