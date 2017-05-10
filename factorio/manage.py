@@ -14,7 +14,6 @@ import subprocess
 
 server_list = {}
 thread_list = {}
-bot = {}
 bot_ready = 0
 currently_running = 0
 
@@ -45,14 +44,11 @@ def find_server(name):
 # char * send_threaded_chat(char * name, char * message)
 def send_threaded_chat(name, message):
     # Get the server that data is being sent to
-    if name == "bot":
-        sendto = bot
-    else:
-        sendto = find_server(name)
-        if not sendto:
-            return "Server Not Running"
-        if sendto.status == "Stopped":
-            return "Server Not Running"
+    sendto = find_server(name)
+    if not sendto:
+        return "Server Not Running"
+    if sendto.status == "Stopped":
+        return "Server Not Running"
 
     # Attempt to lock the mutex - If another thread is currently writing to this place, the code will wait here
     sendto.mutex.acquire()
@@ -80,14 +76,11 @@ def send_threaded_chat(name, message):
 # char * log_chat(char * name, char * message)
 def log_chat(name, message):
     # Get the server that data is being sent to
-    if name == "bot":
-        sendto = bot
-    else:
-        sendto = find_server(name)
-        if not sendto:
-            return "Server Not Running"
-        if sendto.status == "Stopped":
-            return "Server Not Running"
+    sendto = find_server(name)
+    if not sendto:
+        return "Server Not Running"
+    if sendto.status == "Stopped":
+        return "Server Not Running"
 
     # Strip trailing characters if present
     message = message.strip()
@@ -144,8 +137,9 @@ def get_server_status(name):
 # Function to be called by threads in order to monitor input
 # void * input_monitoring(void * server_ptr)
 def input_monitoring(server):
+    global bot_ready
     input_from_server = server.output
-    if server != bot:
+    if server.name != "bot":
         # If Factorio server, create the logfile
         logfile = open(server.logfile, "a")
     while True:
@@ -154,27 +148,27 @@ def input_monitoring(server):
             # This should only get called when the server shuts down
             break
 
-        if (server != bot and " [CHAT] " in data) or " (shout):" not in data:
+        if server.name != "bot" and " [CHAT] " not in data and " (shout):" not in data:
             logfile.write("{}\r\n".format(data))
 
-        if "$" in data and (" [CHAT] " not in data and " (shout):" not in data) or server == bot:
+        if "$" in data and (" [CHAT] " not in data and " (shout):" not in data) or server.name == "bot":
             # The format of the data is "servername$new_data"
             # Handles the rare occasion a chat message will have a '$' inside it
             servername, new_data = data.split("$", 1)
             new_data = new_data.strip()  # if (strchr(new_data,'\n') != NULL) new_data[strchr(new_data,'\n') - new_data] = '\0';
-            if servername == "restart" and server == bot:
+            if servername == "restart" and server.name == "bot":
                 # Bot wants to restart
                 server.mutex.acquire()  # Lock the mutex to prevent the bot from being used before it's ready
                 bot_ready = 0
                 server.status = "Restarting"
-                os.kill(bot.pid, signal.SIGINT)
-                os.waitpid(bot.pid, 0)
+                os.kill(server.pid, signal.SIGINT)
+                os.waitpid(server.pid, 0)
                 input_from_server.close()
                 server.input.close()
                 launch_bot()
                 input_from_server = server.output
                 server.mutex.release()
-            elif servername == "ready" and server == bot:
+            elif servername == "ready" and server.name == "bot":
                 # Bot startup is complete, it is ready to continue
                 bot_ready = 1
             elif servername == "DEBUG":
@@ -208,7 +202,7 @@ def input_monitoring(server):
                 log_chat(server.name, player_announcement)
                 send_threaded_chat("bot", message)
             elif servername == "admin":
-                if server == bot:
+                if server.name == "bot":
                     # Bot is sending a command or announcement to a server
                     actual_server_name, command = new_data.split("$", 1)
                     command = command + "\n"
@@ -231,7 +225,7 @@ def input_monitoring(server):
             elif servername == "PVPROUND":
                 message = "PVPROUND$%s$%s\n".format(server.name, new_data)
                 send_threaded_chat("bot", message)
-            elif server == bot:
+            elif server.name == "bot":
                 if servername == "PVP":
                     # Bot is sending chat to a PvP server through default chat
                     actual_server_name, force_name, message_to_send = new_data.split("$", 2)
@@ -257,7 +251,7 @@ def input_monitoring(server):
             send_threaded_chat("bot", message)
     # After server is closed, close file streams
 
-    if server != bot:
+    if server.name != "bot":
         # If Factorio server, close the logfile
         logfile.close()
 
@@ -387,6 +381,7 @@ def stop_all_servers():
         send_threaded_chat("bot", "{}$**[ANNOUNCEMENT]** Server has stopped!".format(server.name))
     # Shut down the bot
     time.sleep(1)
+    bot = find_server("bot")
     os.kill(bot.pid, signal.SIGINT)
     os.waitpid(bot.pid, 0)
     thread_list[0].join()
@@ -446,6 +441,7 @@ def server_crashed(server):
         if currently_running == 0:
             # Shut down the bot, giving it time to finish whatever action it is doing
             time.sleep(5)
+            bot = find_server("bot")
             os.kill(bot.pid, signal.SIGINT)
             os.waitpid(bot.pid, 0)
             thread_list[0].join()
@@ -470,12 +466,13 @@ class Heartbeat (threading.Thread):
 # int main()
 def main():
     global currently_running
+    global bot_ready
     # Initial setup of variables
     # need to work out scope for these, do they all need to be global etc?
     # servers = 0
     # thread_list = []
     currently_running = 0
-    # bot_ready = 0
+    bot_ready = 0
 
     # pthread_attr_init(&thread_attr);
     # pthread_attr_setdetachstate(&thread_attr, PTHREAD_CREATE_JOINABLE);
@@ -545,7 +542,7 @@ def main():
 
     # Shut down the bot, giving it time to finish whatever action it is doing
     time.sleep(5)
-
+    bot = find_server("bot")
     os.kill(bot.pid, signal.SIGINT)
     os.waitpid(bot.pid, 0)
     thread_list[0].join()
