@@ -59,8 +59,8 @@ def send_threaded_chat(name, message):
 
     # Write data, with added error checking for crash detection
     try:
-        with sendto.input as output:
-            output.write(message)
+        output = sendto.input
+        output.write(message)
     except IOError as e:
         if e.errno == errno.EPIPE:
             server_crashed(sendto)
@@ -399,12 +399,12 @@ def stop_all_servers():
 # void * bot_ready_watch(void * vbot)
 def bot_ready_watch(vbot):
     global bot_ready
-    with vbot.output as bot_input:
-        while True:
-            data = bot_input.readline(2001)
-            if data == "ready$\n":
-                break
-        bot_ready = 1
+    bot_input = vbot.output
+    while True:
+        data = bot_input.readline(2001)
+        if data == "ready$\n":
+            break
+    bot_ready = 1
 
 
 # void launch_bot()
@@ -433,8 +433,8 @@ def server_crashed(server):
         # YYYY-MM-DD HH:MM:SS
         timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         try:
-            with server.input as output:
-                output.write("emergency$%{}\n".format(timestamp))
+            output = server.input
+            output.write("emergency$%{}\n".format(timestamp))
         except IOError as e:
             if e.errno == errno.EPIPE:
                 print("The bot crashed and was unable to be restarted.", file=sys.stderr)
