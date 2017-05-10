@@ -25,7 +25,7 @@ class Server:
         self.input = input  # Overwritten STDIN
         self.output = output  # Overwritten STDOUT
         self.mutex = mutex  # Thread safety
-        self.status = status # Started or Stopped
+        self.status = status  # Started or Stopped
         self.logfile = logfile  # Location of logfile to write to
         self.chatlog = chatlog  # Location of chatlog to write to
         self.chat_mutex = chat_mutex  # Mutex for chatlog protection
@@ -284,7 +284,7 @@ def launch_server(name, args, logpath):
     # Create chatlog filepath, if this is not the bot
     if name_copy != "bot":
         # // "/var/www/factorio/name/chatlog.0"
-        chatlog = "{logpath}/chatlog.0".format(chatlog=logpath)
+        chatlog = "{logpath}/chatlog.0".format(logpath=logpath)
     else:
         chatlog = "bot"
 
@@ -331,8 +331,6 @@ def launch_server(name, args, logpath):
         server.status = "Started"
 
         return "Old Server Restarted"
-
-    return "Not Yet Implemented"
 
 
 # Start a server
