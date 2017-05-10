@@ -178,7 +178,7 @@ def input_monitoring(server):
                 # Handle Articulating's Chat Program
                 chat_args = re.split("[,\n\t]+", new_data.strip())
                 message =  "/silent-command push_message('{}','{}','{}')\n".format(chat_args[0], chat_args[1], chat_args[2])
-                for server in server_list:
+                for _, server in server_list.items():
                     if server.status == "Started":
                         send_threaded_chat(server.name, message)
             elif servername == "PLAYER":
@@ -207,9 +207,9 @@ def input_monitoring(server):
                     actual_server_name, command = new_data.split("$", 1)
                     command = command + "\n"
                     if actual_server_name == "all":
-                        for server in server_list:
+                        for server_name in server_list:
                             # if server.status == "Started":  # Should this be here as it is in other places?
-                            send_threaded_chat(server.name, command)
+                            send_threaded_chat(server_name, command)
                     else:
                         send_threaded_chat(actual_server_name, command)
                 else:
