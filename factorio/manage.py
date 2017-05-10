@@ -90,7 +90,7 @@ def log_chat(name, message):
             return "Server Not Running"
 
     # Strip trailing characters if present
-    message = message.trim()
+    message = message.strip()
 
     # Set up the timestamp
     # YYYY-MM-DD HH:MM:SS
@@ -161,7 +161,7 @@ def input_monitoring(server):
             # The format of the data is "servername$new_data"
             # Handles the rare occasion a chat message will have a '$' inside it
             servername, new_data = data.split("$", 1)
-            new_data = new_data.trim()  # if (strchr(new_data,'\n') != NULL) new_data[strchr(new_data,'\n') - new_data] = '\0';
+            new_data = new_data.strip()  # if (strchr(new_data,'\n') != NULL) new_data[strchr(new_data,'\n') - new_data] = '\0';
             if servername == "restart" and server == bot:
                 # Bot wants to restart
                 server.mutex.acquire()  # Lock the mutex to prevent the bot from being used before it's ready
