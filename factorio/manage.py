@@ -343,7 +343,7 @@ def start_server(name, input_args):
         "--start-server-load-latest" if args[0] == "true" else "--start-server",
         "--port", args[1],
         "-c", "{}/config/config.ini".format(args[2]),
-        "--server-setting", "{}/server-settings.json\0".format(args[2])
+        "--server-setting", "{}/server-settings.json".format(args[2])
     ]
     result = launch_server(name, launchargs, args[2])
     return result
