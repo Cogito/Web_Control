@@ -496,6 +496,10 @@ def main():
     heartbeat_thread.start()
 
     for line in sys.stdin:
+        if "$" not in line:
+            print("Failure to receive input", file=sys.stderr)
+            return 1
+
         servername, new_input = line.split("$", 1)
         # not sure if we need to detect \n and replace with \0 here in new_input
         # Checks for command
