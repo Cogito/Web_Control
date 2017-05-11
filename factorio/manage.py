@@ -3,7 +3,7 @@ import errno
 import threading
 import time
 import os
-import signal
+from signal import signal, SIGINT, SIGPIPE, SIG_IGN
 import re
 import datetime
 import subprocess
@@ -463,8 +463,8 @@ def main():
     bot_ready = 0
 
     # Redirect certain signals to perform other functions
-    signal(signal.SIGINT, stop_all_servers)  # Safe shutdown of all servers
-    signal(signal.SIGPIPE, signal.SIG_IGN)  # Crash detection
+    signal(SIGINT, stop_all_servers)  # Safe shutdown of all servers
+    signal(SIGPIPE, SIG_IGN)  # Crash detection
 
     # Launch the bot
     launch_bot()
