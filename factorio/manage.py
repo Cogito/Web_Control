@@ -548,7 +548,8 @@ def clean_exit(error_code=0):
     bot = find_server("bot")
     os.kill(bot.pid, signal.SIGINT)
     os.waitpid(bot.pid, 0)
-    thread_list[0].join()
+    if len(thread_list) > 0:
+        thread_list[0].join()
     bot.input.close()  # Close input pipe
     bot.output.close()  # Close output pipe
     exit(error_code)
