@@ -462,12 +462,9 @@ def main():
     currently_running = 0
     bot_ready = 0
 
-    # pthread_attr_init(&thread_attr);
-    # pthread_attr_setdetachstate(&thread_attr, PTHREAD_CREATE_JOINABLE);
-    #
     # Redirect certain signals to perform other functions
-    # if (signal(SIGINT, stop_all_servers) == SIG_ERR) fprintf(stderr, "Failure to ignore interrupt signal.\n"); //Safe shutdown of all servers
-    # if (signal(SIGPIPE, SIG_IGN) == SIG_ERR) fprintf(stderr, "Failure to ignore broken pipe signal.\n"); //Crash detection
+    signal(signal.SIGINT, stop_all_servers)  # Safe shutdown of all servers
+    signal(signal.SIGPIPE, signal.SIG_IGN)  # Crash detection
 
     # Launch the bot
     launch_bot()
