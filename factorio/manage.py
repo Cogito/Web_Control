@@ -384,16 +384,8 @@ def stop_all_servers():
         stop_server(server.name)
         print("Server {} Shutdown".format(server.name), file=sys.stdout)
         send_threaded_chat("bot", "{}$**[ANNOUNCEMENT]** Server has stopped!".format(server.name))
-    # Shut down the bot
-    time.sleep(1)
-    bot = find_server("bot")
-    os.kill(bot.pid, signal.SIGINT)
-    os.waitpid(bot.pid, 0)
-    thread_list[0].join()
-    bot.input.close()  # Close input pipe
-    bot.output.close()  # Close output pipe
     # Exit successfully
-    exit(0)
+    clean_exit(0)
 
 
 # void * bot_ready_watch(void * vbot)
@@ -438,22 +430,14 @@ def server_crashed(server):
         except IOError as e:
             if e.errno == errno.EPIPE:
                 print("The bot crashed and was unable to be restarted.", file=sys.stderr)
-                exit(1)
+                clean_exit(1)
                 return
     else:
         send_threaded_chat("bot", "crashreport${}".format(server.name))
         currently_running = currently_running - 1
         if currently_running == 0:
-            # Shut down the bot, giving it time to finish whatever action it is doing
-            time.sleep(5)
-            bot = find_server("bot")
-            os.kill(bot.pid, signal.SIGINT)
-            os.waitpid(bot.pid, 0)
-            thread_list[0].join()
-            bot.input.close()  # Close input pipe
-            bot.output.close()  # Close output pipe
             # Exit with error
-            exit(1)
+            clean_exit(1)
     server.mutex.release()
 
 
@@ -496,7 +480,7 @@ def main():
         line = line.strip()
         if "$" not in line:
             print("Failure to receive input", file=sys.stderr)
-            return 1
+            clean_exit(1)
 
         servername, new_input = line.split("$", 1)
         # Checks for command
@@ -557,6 +541,18 @@ def main():
 
     # Exit successfully
     return 0
+
+
+def clean_exit(error_code=0):
+    time.sleep(5)
+    bot = find_server("bot")
+    os.kill(bot.pid, signal.SIGINT)
+    os.waitpid(bot.pid, 0)
+    thread_list[0].join()
+    bot.input.close()  # Close input pipe
+    bot.output.close()  # Close output pipe
+    exit(error_code)
+
 
 if __name__ == "__main__":
     sys.exit(main())
