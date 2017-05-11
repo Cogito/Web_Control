@@ -459,13 +459,12 @@ def server_crashed(server):
 
 # void * heartbeat()
 # Uses global `server_list` to know who to send messages to
-class Heartbeat (threading.Thread):
-    def run(self):
-        while True:
-            send_threaded_chat("bot", "heartbeat$")
-            for _, server in server_list.items():
-                send_threaded_chat(server, "/silent-command local heartbeat = true\n")
-            time.sleep(15)
+def heartbeat():
+    while True:
+        send_threaded_chat("bot", "heartbeat$")
+        for _, server in server_list.items():
+            send_threaded_chat(server, "/silent-command local heartbeat = true\n")
+        time.sleep(15)
 
 
 # int main()
@@ -489,10 +488,8 @@ def main():
     # Launch the bot
     launch_bot()
 
-    # //Create the heartbeat, also for improved crash detection
-    # pthread_t heartbeat_thread;
-    # pthread_create(&heartbeat_thread, &thread_attr, heartbeat, (void *) NULL);
-    heartbeat_thread = Heartbeat()
+    # Create the heartbeat, also for improved crash detection
+    heartbeat_thread = threading.Thread(target=heartbeat, daemon=True)
     heartbeat_thread.start()
 
     for line in sys.stdin:
