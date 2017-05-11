@@ -530,20 +530,12 @@ def main():
             if "[WEB]" in new_input:
                 log_chat(servername, new_input[new_input.find("[WEB]"):])
 
-    # Shut down the bot, giving it time to finish whatever action it is doing
-    time.sleep(5)
-    bot = find_server("bot")
-    os.kill(bot.pid, signal.SIGINT)
-    os.waitpid(bot.pid, 0)
-    thread_list[0].join()
-    bot.input.close()  # Close input pipe
-    bot.output.close()  # Close output pipe
-
     # Exit successfully
-    return 0
+    clean_exit()
 
 
 def clean_exit(error_code=0):
+    # Shut down the bot, giving it time to finish whatever action it is doing
     time.sleep(5)
     bot = find_server("bot")
     os.kill(bot.pid, signal.SIGINT)
@@ -556,4 +548,4 @@ def clean_exit(error_code=0):
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()
