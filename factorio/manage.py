@@ -3,7 +3,7 @@ import errno
 import threading
 import time
 import os
-from signal import signal, SIGINT, SIGPIPE, SIG_IGN
+from signal import signal, SIGINT, SIGPIPE, SIG_IGN, SIGKILL
 import re
 import datetime
 import subprocess
@@ -161,7 +161,7 @@ def input_monitoring(server):
                 server.mutex.acquire()  # Lock the mutex to prevent the bot from being used before it's ready
                 bot_ready = 0
                 server.status = "Restarting"
-                os.kill(server.pid, signal.SIGINT)
+                os.kill(server.pid, SIGINT)
                 os.waitpid(server.pid, 0)
                 input_from_server.close()
                 server.input.close()
@@ -368,7 +368,7 @@ def stop_server(name):
     # Get the server to shut down
     server = find_server(name)
 
-    os.kill(server.pid, signal.SIGINT)  # Send CTRL-C to the server, should close pipes on server end
+    os.kill(server.pid, SIGINT)  # Send CTRL-C to the server, should close pipes on server end
     os.waitpid(server.pid, 0)  # Wait for server to close
     thread_list[server.name].join()  # Wait for thread to terminate
     server.input.close()  # Close input pipe
@@ -514,7 +514,7 @@ def main():
             # Get the server to shut down
             server = find_server(servername)
 
-            os.kill(server.pid, signal.SIGKILL)  # Send SIGKILL to the server, forcing an immediate shutdown
+            os.kill(server.pid, SIGKILL)  # Send SIGKILL to the server, forcing an immediate shutdown
 
             print("Server {} Stopped".format(servername), file=sys.stdout)
             currently_running -= 1
@@ -535,7 +535,7 @@ def clean_exit(error_code=0):
     # Shut down the bot, giving it time to finish whatever action it is doing
     time.sleep(5)
     bot = find_server("bot")
-    os.kill(bot.pid, signal.SIGINT)
+    os.kill(bot.pid, SIGINT)
     os.waitpid(bot.pid, 0)
     if "bot" in thread_list:
         thread_list["bot"].join()
