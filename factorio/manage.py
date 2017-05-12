@@ -269,19 +269,15 @@ def launch_server(name, args, logpath):
     if server_status == "Server Running":
         return "Server Running"
 
-    # Create copy of name, because of the weirdness of how C pointers works
-    # Required to allow multiple servers
-    name_copy = name
-
     # Create logfile filepath, if this is not the bot
-    if name_copy != "bot":
+    if name != "bot":
         # "/var/www/factorio/name/screenlog.0"
         logfile = "{logpath}/screenlog.0".format(logpath=logpath)
     else:
         logfile = "bot"
 
     # Create chatlog filepath, if this is not the bot
-    if name_copy != "bot":
+    if name != "bot":
         # // "/var/www/factorio/name/chatlog.0"
         chatlog = "{logpath}/chatlog.0".format(logpath=logpath)
     else:
@@ -311,7 +307,7 @@ def launch_server(name, args, logpath):
         if server_status == "Server Does Not Exist":
             server = Server(
                 pid=pid,
-                name=name_copy,
+                name=name,
                 input=parent_out,
                 output=parent_in,
                 mutex=threading.Lock(),
