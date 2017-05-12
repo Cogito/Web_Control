@@ -163,7 +163,7 @@ def input_monitoring(server):
                 os.kill(server.pid, SIGINT)
                 os.waitpid(server.pid, 0)
                 input_from_server.close()
-                server.input.close()
+                os.close(server.input)
                 launch_bot()
                 input_from_server = os.fdopen(server.output, "r")
                 server.mutex.release()
@@ -377,8 +377,8 @@ def stop_server(name):
     os.kill(server.pid, SIGINT)  # Send CTRL-C to the server, should close pipes on server end
     os.waitpid(server.pid, 0)  # Wait for server to close
     thread_list[server.name].join()  # Wait for thread to terminate
-    server.input.close()  # Close input pipe
-    server.output.close()  # Close output pipe
+    os.close(server.input)  # Close input pipe
+    os.close(server.output)  # Close output pipe
     server.status = "Stopped"
 
     return "Server Stopped"
@@ -420,8 +420,8 @@ def server_crashed(server):
     global bot_ready
     global currently_running
     # The server has crashed
-    server.input.close()  # Close input pipe
-    server.output.close()  # Close output pipe
+    os.close(server.input)  # Close input pipe
+    os.close(server.output)  # Close output pipe
     server.status = "Stopped"
 
     if server.name == "bot":
@@ -545,8 +545,8 @@ def clean_exit(error_code=0):
     os.waitpid(bot.pid, 0)
     if "bot" in thread_list:
         thread_list["bot"].join()
-    bot.input.close()  # Close input pipe
-    bot.output.close()  # Close output pipe
+    os.close(bot.input)  # Close input pipe
+    os.close(bot.output)  # Close output pipe
     exit(error_code)
 
 
