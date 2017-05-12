@@ -6,7 +6,6 @@ import os
 from signal import signal, SIGINT, SIGPIPE, SIG_IGN, SIGKILL
 import re
 import datetime
-import subprocess
 
 #changes
 # server_list is a dict containing servers indexed by name, and does not contain the bot
@@ -59,7 +58,7 @@ def send_threaded_chat(name, message):
 
     # Write data, with added error checking for crash detection
     try:
-        output = sendto.input
+        output = os.fdopen(os.dup(sendto.input), "a")
         output.write(message)
     except IOError as e:
         if e.errno == errno.EPIPE:
@@ -138,7 +137,7 @@ def get_server_status(name):
 # void * input_monitoring(void * server_ptr)
 def input_monitoring(server):
     global bot_ready
-    input_from_server = server.output
+    input_from_server = os.fdopen(server.output, "r")  # Begin monitoring the pipe
     if server.name != "bot":
         # If Factorio server, create the logfile
         logfile = open(server.logfile, "a")
@@ -166,7 +165,7 @@ def input_monitoring(server):
                 input_from_server.close()
                 server.input.close()
                 launch_bot()
-                input_from_server = server.output
+                input_from_server = os.fdopen(server.output, "r")
                 server.mutex.release()
             elif servername == "ready" and server.name == "bot":
                 # Bot startup is complete, it is ready to continue
@@ -288,49 +287,60 @@ def launch_server(name, args, logpath):
     else:
         chatlog = "bot"
 
-    # Create server subprocess
-    new_server_process = subprocess.Popen(
-        args=args,
-        stdin=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        universal_newlines=True
-    )
-
-    # Only parent process reaches this point
-    # Adds server to server_list, and creates new thread for monitoring
-    if server_status == "Server Does Not Exist":
-        server = Server(
-            pid=new_server_process.pid,
-            name=name_copy,
-            input=new_server_process.stdin,
-            output=new_server_process.stdout,
-            mutex=threading.Lock(),
-            status="Started",
-            logfile=logfile,
-            chatlog=chatlog,
-            chat_mutex=threading.Lock(),
-        )
-
-        server_list[server.name] = server
-        thread_list[server.name] = threading.Thread(target=input_monitoring, args=(server,), daemon=True)
-        thread_list[server.name].start()
-        return "New Server Started"
+    # Create pipes
+    child_in, parent_out = os.pipe()
+    parent_in, child_out = os.pipe()
+    pid = os.fork()
+    if pid < 0:
+        print("Failure to fork process.", file=sys.stderr)
+        clean_exit(1)
+    elif pid == 0:
+        # Child Process (Server)
+        os.dup2(child_in, sys.stdin.fileno())
+        os.close(child_in)
+        os.close(parent_out)
+        os.dup2(child_out, sys.stdout.fileno())
+        os.close(child_out)
+        os.close(parent_in)
+        os.execvp(args[0], args)
     else:
-        server = find_server(name)
-        server.pid = new_server_process.pid
-        server.input = new_server_process.stdin
-        server.output = new_server_process.stdout
-        server.logfile = logfile
-        server.chatlog = chatlog
-        if server.status != "Restarting":
+        # Only parent process reaches this point
+        # Adds server to server_list, and creates new thread for monitoring
+        os.close(child_in)
+        os.close(child_out)
+        if server_status == "Server Does Not Exist":
+            server = Server(
+                pid=pid,
+                name=name_copy,
+                input=parent_out,
+                output=parent_in,
+                mutex=threading.Lock(),
+                status="Started",
+                logfile=logfile,
+                chatlog=chatlog,
+                chat_mutex=threading.Lock(),
+            )
+            server_list[server.name] = server
             thread_list[server.name] = threading.Thread(target=input_monitoring, args=(server,), daemon=True)
             thread_list[server.name].start()
-        else:
-            thread_list[server.name] = threading.Thread(target=bot_ready_watch, args=(server,), daemon=True)
-            thread_list[server.name].start()
-        server.status = "Started"
 
-        return "Old Server Restarted"
+            return "New Server Started"
+        else:
+            server = find_server(name)
+            server.pid = pid
+            server.input = parent_out
+            server.output = parent_in
+            server.logfile = logfile
+            server.chatlog = chatlog
+            if server.status != "Restarting":
+                thread_list[server.name] = threading.Thread(target=input_monitoring, args=(server,), daemon=True)
+                thread_list[server.name].start()
+            else:
+                thread_list[server.name] = threading.Thread(target=bot_ready_watch, args=(server,), daemon=True)
+                thread_list[server.name].start()
+            server.status = "Started"
+
+            return "Old Server Restarted"
 
 
 # Start a server
@@ -389,9 +399,9 @@ def stop_all_servers():
 
 
 # void * bot_ready_watch(void * vbot)
-def bot_ready_watch(vbot):
+def bot_ready_watch(bot):
     global bot_ready
-    bot_input = vbot.output
+    bot_input = os.fdopen(os.dup(bot.output), "r")
     while True:
         data = bot_input.readline(2001)
         if data == "ready$\n":
@@ -425,7 +435,7 @@ def server_crashed(server):
         # YYYY-MM-DD HH:MM:SS
         timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         try:
-            output = server.input
+            output = os.fdopen(os.dup(server.input), "a")
             output.write("emergency$%{}\n".format(timestamp))
         except IOError as e:
             if e.errno == errno.EPIPE:
