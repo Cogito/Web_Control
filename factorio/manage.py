@@ -289,7 +289,7 @@ def launch_server(name, args, logpath):
     pid = os.fork()
     if pid < 0:
         print("Failure to fork process.", file=sys.stderr)
-        clean_exit(1)
+        exit(1)
     elif pid == 0:
         # Child Process (Server)
         os.dup2(child_in, sys.stdin.fileno())
@@ -436,7 +436,7 @@ def server_crashed(server):
         except IOError as e:
             if e.errno == errno.EPIPE:
                 print("The bot crashed and was unable to be restarted.", file=sys.stderr)
-                clean_exit(1)
+                exit(1)
                 return
     else:
         send_threaded_chat("bot", "crashreport${}".format(server.name))
@@ -483,7 +483,7 @@ def main():
         line = line.strip()
         if "$" not in line:
             print("Failure to receive input", file=sys.stderr)
-            clean_exit(1)
+            exit(1)
 
         servername, new_input = line.split("$", 1)
         # Checks for command
