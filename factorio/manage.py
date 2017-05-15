@@ -58,7 +58,7 @@ def send_threaded_chat(name, message):
 
     # Write data, with added error checking for crash detection
     try:
-        output = os.fdopen(os.dup(sendto.input), "a")
+        output = os.fdopen(os.dup(sendto.input), "w")
         output.write(message)
     except IOError as e:
         if e.errno == errno.EPIPE:
@@ -431,7 +431,7 @@ def server_crashed(server):
         # YYYY-MM-DD HH:MM:SS
         timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         try:
-            output = os.fdopen(os.dup(server.input), "a")
+            output = os.fdopen(os.dup(server.input), "w")
             output.write("emergency$%{}\n".format(timestamp))
         except IOError as e:
             if e.errno == errno.EPIPE:
